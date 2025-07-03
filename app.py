@@ -239,8 +239,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             """)
             
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
-            future_scaled = scaler.transform(future_books['book_id'].values.reshape(-1, 1))
-            future_tensor = torch.tensor(future_scaled, dtype=torch.float32)
+            future_tensor = torch.tensor(future_books['book_id'].values, dtype=torch.long)
             future_preds = model(future_tensor).detach().numpy().flatten()
             future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
 
