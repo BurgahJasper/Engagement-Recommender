@@ -185,7 +185,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 model = BookRegressor()
                 criterion = nn.MSELoss()
                 optimizer = optim.Adam(model.parameters(), lr=0.01)
-                X_tensor = torch.tensor(X_train.values, dtype=torch.float32)
+                X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
                 for _ in range(epochs):
                     model.train()
@@ -197,7 +197,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 return model
 
             model = train_model(X, y)
-            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).numpy().flatten()
+            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
