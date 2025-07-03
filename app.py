@@ -64,9 +64,10 @@ with st.sidebar:
     This interactive recommender system was built using the Goodbooks-10K dataset.
 
     **Purpose:**
-    - Demonstrate collaborative filtering using SVD (latent embeddings)
-    - Forecast user behavior using machine learning
-    - Allow filter-based exploration of book recommendations
+    - 🎯 SVD for latent user embeddings
+    - 🔄 Forecasting via PyTorch & Random Forest
+    - 📊 Real-time chart visualizations
+    - 🧠 Compare ML model performance
 
     **Technologies used:**
     - Streamlit for interactive UI
@@ -217,6 +218,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
             st.line_chart(chart_data)
+            st.caption("📘 Hover over lines in the chart to compare individual ratings")
 
             st.subheader("Training Loss Curve")
             st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
