@@ -197,6 +197,13 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             ax2.set_title("Predicted Ratings for Unseen Books", color='white')
             st.pyplot(fig2)
 
+            from sklearn.metrics import mean_squared_error
+            lr_model = LinearRegression()
+            lr_model.fit(X, y)
+            lr_preds = lr_model.predict(X)
+            rf_rmse = np.sqrt(mean_squared_error(y, pred))
+            lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
+
             st.subheader("Model Comparison")
             st.markdown(f"""
             This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**.
@@ -209,6 +216,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
 
             These scores help decide which model is more suitable for forecasting ratings.
             """)
+
             from sklearn.metrics import mean_squared_error
             lr_model = LinearRegression()
             lr_model.fit(X, y)
