@@ -164,7 +164,8 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             valid_books = user_history['book_id'].isin(book_id_to_idx)
             user_history = user_history[valid_books]
 
-            X = np.array([book_features[:, book_id_to_idx[bid]] for bid in user_history['book_id']])
+            indices = [book_id_to_idx[bid] for bid in user_history['book_id']]
+            X = book_features[:, indices].T
             y = user_history['rating']
 
             import torch
