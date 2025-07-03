@@ -92,8 +92,6 @@ st.markdown("---")
 # Refresh button to apply filters only on demand
 if st.button("Refresh Recommendations"):
 
-
-    if user_input:
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
