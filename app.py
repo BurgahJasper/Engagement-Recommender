@@ -44,6 +44,8 @@ This app uses collaborative filtering and machine learning to recommend books an
 - **Training Loss Curve** visualizes learning over time for the PyTorch model.
 """)
 
+compare_embedding = st.toggle("Compare With vs. Without Embedding", help="Shows how predictions differ with vs. without SVD embedding layers.")
+
 @st.cache_data
 def load_data():
     ratings = pd.read_csv("https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/ratings.csv")
@@ -217,6 +219,30 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
             st.line_chart(chart_data)
+
+            if compare_embedding:
+                st.subheader("Embedding Comparison Chart")
+                st.markdown("This shows how predictions differ using a Random Forest model trained on SVD embeddings versus raw book IDs.")
+
+                # Model using embeddings (SVD)
+                rf_embed_model = RandomForestRegressor(n_estimators=100, random_state=42)
+                rf_embed_model.fit(X, y)
+                embed_preds = rf_embed_model.predict(X)
+
+                # Model without embeddings (raw book_id)
+                X_raw = user_history['book_id'].values.reshape(-1, 1)
+                rf_raw_model = RandomForestRegressor(n_estimators=100, random_state=42)
+                rf_raw_model.fit(X_raw, y)
+                raw_preds = rf_raw_model.predict(X_raw)
+
+                # Comparison chart
+                compare_df = pd.DataFrame({
+                    "Actual Ratings": y.values,
+                    "With Embedding (SVD)": embed_preds,
+                    "Without Embedding (Raw Book ID)": raw_preds
+                }, index=book_titles)
+
+                st.line_chart(compare_df)
 
             st.subheader("Training Loss Curve")
             st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
