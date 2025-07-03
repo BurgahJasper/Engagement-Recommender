@@ -92,31 +92,28 @@ with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
 
-with col4:
-    import random
-    if st.button("Randomize Inputs", key="top_random_button"):
-        st.session_state["user_input"] = random.randint(1, 5000)
-        st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
-        st.rerun()
+
 
 st.markdown("---")
 
-# Refresh button to apply filters only on demand
-col_button = st.columns([4, 1, 1, 4])
-with col_button[1]:
+# Refresh and Randomize buttons in one row
+button_col1, button_col2, button_spacer = st.columns([1, 1, 6])
+with button_col1:
     import time
-if "last_click" not in st.session_state:
-    st.session_state["last_click"] = 0
-
-cooldown_seconds = 2
-now = time.time()
-can_click = now - st.session_state["last_click"] > cooldown_seconds
-
-refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.", disabled=not can_click)
-if refresh_clicked:
-    st.session_state["last_click"] = now
-with col_button[2]:
-    if st.button("Randomize Inputs", key="bottom_random_button"):
+    if "last_click" not in st.session_state:
+        st.session_state["last_click"] = 0
+    cooldown_seconds = 2
+    now = time.time()
+    can_click = now - st.session_state["last_click"] > cooldown_seconds
+    refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.", disabled=not can_click)
+    if refresh_clicked:
+        st.session_state["last_click"] = now
+with button_col2:
+    import random
+    if st.button("Randomize Inputs", key="random_inputs_button"):
+        st.session_state["user_input"] = random.randint(1, 5000)
+        st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
+        st.rerun()
         st.session_state["user_input"] = random.randint(1, 5000)
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
@@ -135,7 +132,7 @@ if refresh_clicked:
         top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
-        st.markdown("These are the five most similar users to the selected user, based on collaborative filtering and cosine similarity of their book rating patterns.")
+        st.markdown("These are the five most similar users to the selected user (if there are similar users), based on collaborative filtering and cosine similarity of their book rating patterns.")
         for i, uid in enumerate(top_users):
             st.markdown(f"<span style='color:#bbb;font-size:16px'>👤 <strong>User {uid}</strong> — Similarity Rank #{i+1}</span>", unsafe_allow_html=True)
 
