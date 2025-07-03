@@ -94,7 +94,7 @@ with col3:
 
 with col4:
     import random
-    if st.button("Randomize Inputs"):
+    if st.button("Randomize Inputs", key="top_random_button"):
         st.session_state["user_input"] = random.randint(1, 5000)
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
@@ -116,7 +116,7 @@ refresh_clicked = st.button("Refresh Recommendations", help="Click once to updat
 if refresh_clicked:
     st.session_state["last_click"] = now
 with col_button[2]:
-    if st.button("Randomize Inputs"):
+    if st.button("Randomize Inputs", key="bottom_random_button"):
         st.session_state["user_input"] = random.randint(1, 5000)
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
