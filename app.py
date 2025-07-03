@@ -93,7 +93,7 @@ if user_input:
         sim_scores = list(enumerate(cosine_sim[user_index]))
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
         # Avoid recomputing and crashing when similarity score excludes too many users
-top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
+        top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
         st.write(top_users)
