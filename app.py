@@ -25,6 +25,11 @@ st.title("ML Powered Engagement Recommender")
 st.markdown("""
 This app uses collaborative filtering and machine learning to recommend books and forecast ratings.
 
+**Instructions:**
+1. Use the controls to select a user, similarity threshold, and language.
+2. Click **Refresh Recommendations** to generate suggestions and predictions.
+3. Avoid rapidly clicking the button — computations take a few seconds.
+
 **How it works:**
 - **User ID**: Select a user to get personalized recommendations based on their historical ratings.
 - **Minimum Similarity Score**: Adjust the threshold to control how similar other users must be to influence recommendations.
@@ -90,9 +95,10 @@ with col3:
 st.markdown("---")
 
 # Refresh button to apply filters only on demand
-if st.button("Refresh Recommendations"):
+if st.button("Refresh Recommendations", help="Click once to update based on selected filters."):
+    with st.spinner("Generating recommendations..."):
 
-    pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
+            pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
         embeddings = generate_embeddings(pivot_table)  # Cached embedding computation
