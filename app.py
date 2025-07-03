@@ -1,3 +1,4 @@
+# engagement_recommender/app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -52,9 +53,11 @@ def load_data():
 
 @st.cache_data
 def generate_embeddings(pivot_table):
+    # Perform SVD only once and cache it
     svd = TruncatedSVD(n_components=20, random_state=42)
     return svd.fit_transform(pivot_table)
 
+# Sidebar description for users
 with st.sidebar:
     st.header("About this App")
     st.markdown("""
@@ -94,6 +97,7 @@ with col3:
 
 st.markdown("---")
 
+# Refresh and Randomize buttons in one row
 button_col2, button_col1 = st.columns([0.6, 0.6])
 with button_col1:
     import time
@@ -124,12 +128,13 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
-        embeddings = generate_embeddings(pivot_table)
+        embeddings = generate_embeddings(pivot_table)  # Cached embedding computation
         cosine_sim = cosine_similarity(embeddings)
 
         user_index = pivot_table.index.get_loc(user_input)
         sim_scores = list(enumerate(cosine_sim[user_index]))
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+        # Avoid recomputing and crashing when similarity score excludes too many users
         top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
@@ -150,8 +155,9 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
         st.subheader("Recommended Books")
         st.markdown("These recommendations are predicted based on books rated highly by users with similar preferences, filtered optionally by language.")
 
+        # Enrich top recommended books with metadata
         rec_books = books[books['book_id'].isin(top_recs.index)][['book_id', 'title', 'authors', 'original_publication_year', 'average_rating']]
-        rec_books = rec_books.set_index('book_id').loc[top_recs.index]
+        rec_books = rec_books.set_index('book_id').loc[top_recs.index]  # Keep top rec order
         rec_books["Estimated Rating"] = top_recs.values
         st.dataframe(rec_books)
 
@@ -161,19 +167,20 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
             book_features = generate_embeddings(pivot_table)
             book_id_to_idx = {bid: idx for idx, bid in enumerate(pivot_table.columns)}
+
+            # Filter only known books that have SVD features
             valid_books = user_history['book_id'].isin(book_id_to_idx)
             user_history = user_history[valid_books]
+            X = user_history['book_id'].apply(lambda x: book_features[:, book_id_to_idx[x]])
+            X = np.vstack(X.values)
 
-            indices = [book_id_to_idx[bid] for bid in user_history['book_id']]
-            X = book_features[:, indices].T
             y = user_history['rating']
-
             import torch
             import torch.nn as nn
             import torch.optim as optim
 
             class BookRegressor(nn.Module):
-                def __init__(self, input_dim=20, hidden_dim=16):
+                def __init__(self, input_dim=1, hidden_dim=16):
                     super().__init__()
                     self.model = nn.Sequential(
                         nn.Linear(input_dim, hidden_dim),
@@ -186,10 +193,10 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     return self.model(x)
 
             def train_model(X_train, y_train, epochs=200):
-                model = BookRegressor(input_dim=X_train.shape[1])
+                model = BookRegressor()
                 criterion = nn.MSELoss()
                 optimizer = optim.Adam(model.parameters(), lr=0.01)
-                X_tensor = torch.tensor(X_train, dtype=torch.float32)
+                X_tensor = torch.tensor(X, dtype=torch.float32)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
                 losses = []
                 for _ in range(epochs):
@@ -200,6 +207,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     loss.backward()
                     optimizer.step()
                     losses.append(loss.item())
+                # Move loss curve rendering to after rating trends
                 return model, losses
 
             model, losses = train_model(X, y)
