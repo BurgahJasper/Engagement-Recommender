@@ -31,13 +31,15 @@ Customize your input to explore personalized suggestions and trends.
 def load_data():
     ratings = pd.read_csv("https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/ratings.csv")
     books = pd.read_csv("https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv")
+    # Sample to 5000 users for memory efficiency
+    ratings = ratings[ratings['user_id'] <= 5000]
     return ratings, books
 
 ratings, books = load_data()
 
 col1, col2, col3 = st.columns([1, 1, 2])
 with col1:
-    user_input = st.number_input("Enter User ID", min_value=1, step=1, help="Type a user ID number from the dataset.")
+    user_input = st.number_input("Enter User ID", min_value=1, max_value=5000, step=1, help="Type a user ID number from the dataset.")
 with col2:
     confidence_threshold = st.slider("Minimum Similarity Score", min_value=0.0, max_value=1.0, value=0.5, step=0.05, help="Only show similar users above this similarity score.")
 with col3:
@@ -72,7 +74,7 @@ if user_input:
             avg_ratings = avg_ratings[avg_ratings.index.isin(filtered_books)]
 
         top_recs = avg_ratings.sort_values(ascending=False).head(5)
-        st.subheader("📚 Recommended Books")
+        st.subheader("Recommended Books")
         st.dataframe(top_recs.rename("Estimated Rating"))
 
         user_history = ratings[ratings['user_id'] == user_input].sort_values('book_id')
