@@ -8,7 +8,7 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="Engagement Recommender", layout="wide")
+st.set_page_config(page_title="Engagement Recommender", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
 <style>
     body {
@@ -24,16 +24,50 @@ st.markdown("""
 st.title("ML Powered Engagement Recommender")
 st.markdown("""
 This app uses collaborative filtering and machine learning to recommend books and forecast ratings.
-Customize your input to explore personalized suggestions and trends.
+
+**How it works:**
+- **User ID**: Select a user to get personalized recommendations based on their historical ratings.
+- **Minimum Similarity Score**: Adjust the threshold to control how similar other users must be to influence recommendations.
+- **Language Filter**: Choose which book languages you're interested in to narrow down suggestions.
+
+**Behind the scenes:**
+- The app uses **Truncated SVD** to generate user embeddings and compute user similarity.
+- Based on similar users' ratings, it suggests books you haven’t rated yet.
+- It trains a **Random Forest model** to forecast your future book preferences.
 """)
 
 @st.cache_data
 def load_data():
     ratings = pd.read_csv("https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/ratings.csv")
     books = pd.read_csv("https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv")
-    # Sample to 5000 users for memory efficiency
-    ratings = ratings[ratings['user_id'] <= 5000]
+    ratings = ratings[ratings['user_id'] <= 5000]  # Limit to 5000 users for performance
     return ratings, books
+
+@st.cache_data
+def generate_embeddings(pivot_table):
+    # Perform SVD only once and cache it
+    svd = TruncatedSVD(n_components=20, random_state=42)
+    return svd.fit_transform(pivot_table)
+
+# Sidebar description for users
+with st.sidebar:
+    st.header("About this App")
+    st.markdown("""
+    This interactive recommender system was built using the Goodbooks-10K dataset.
+
+    **Purpose:**
+    - Demonstrate collaborative filtering using SVD (latent embeddings)
+    - Forecast user behavior using machine learning
+    - Allow filter-based exploration of book recommendations
+
+    **Technologies used:**
+    - Streamlit for interactive UI
+    - Scikit-learn for ML and recommendations
+    - Pandas & NumPy for data handling
+    - Random Forest for forecasting future ratings
+
+    Developed by Jasper Maximo Garcia
+    """)
 
 ratings, books = load_data()
 
@@ -43,8 +77,8 @@ with col1:
 with col2:
     confidence_threshold = st.slider("Minimum Similarity Score", min_value=0.0, max_value=1.0, value=0.5, step=0.05, help="Only show similar users above this similarity score.")
 with col3:
-    genres = books['genres'].dropna().unique().tolist() if 'genres' in books.columns else []
-    selected_genres = st.multiselect("Filter by Genre", genres, help="Select preferred genres to filter recommendations.")
+    language_codes = books['language_code'].dropna().unique().tolist()
+    selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
 
 st.markdown("---")
 
@@ -52,8 +86,7 @@ if user_input:
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
-        svd = TruncatedSVD(n_components=20, random_state=42)
-        embeddings = svd.fit_transform(pivot_table)
+        embeddings = generate_embeddings(pivot_table)  # Cached embedding computation
         cosine_sim = cosine_similarity(embeddings)
 
         user_index = pivot_table.index.get_loc(user_input)
@@ -68,9 +101,9 @@ if user_input:
         unrated_books = user_ratings[user_ratings == 0].index
         avg_ratings = pivot_table.loc[top_users, unrated_books].mean()
 
-        if selected_genres and 'genres' in books.columns:
-            book_meta = books[['book_id', 'genres']]
-            filtered_books = book_meta[book_meta['genres'].isin(selected_genres)]['book_id']
+        if selected_languages:
+            book_meta = books[['book_id', 'language_code']]
+            filtered_books = book_meta[book_meta['language_code'].isin(selected_languages)]['book_id']
             avg_ratings = avg_ratings[avg_ratings.index.isin(filtered_books)]
 
         top_recs = avg_ratings.sort_values(ascending=False).head(5)
