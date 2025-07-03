@@ -173,13 +173,12 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             st.line_chart(chart_data)
 
             st.subheader("Forecasted Ratings")
-
-            # Show explanation of what forecasting means
             st.markdown("""
-            These ratings are predictions of how this user might rate unseen books in the future,
-            based on their past behavior and using a trained Random Forest model.
+            These ratings are predictions of how this user might rate **unseen books** in the future, based on their past behavior and a trained Random Forest model.
 
-            Higher values (closer to 5) mean the model believes the user is likely to enjoy similar books.
+            This differs from the **Top Predicted Books** section, which shows high scores for books the user has already rated (or rated-like books).
+
+            Forecasting shows expected interest in **brand new books**, while top predicted books reflect confidence in favorites.
             """)
 
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
@@ -199,8 +198,16 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             st.pyplot(fig2)
 
             st.subheader("Model Comparison")
-            st.markdown("""
-            This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**. This shows how different algorithms affect predictions.
+            st.markdown(f"""
+            This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**.
+
+            The **Root Mean Squared Error (RMSE)** measures how closely each model's predictions align with the actual ratings:
+            - A **lower RMSE** means the model makes more accurate predictions.
+            - In this case:
+              - Random Forest RMSE: **{rf_rmse:.4f}** — captures complex user behavior well
+              - Linear Regression RMSE: **{lr_rmse:.4f}** — simpler, but less flexible
+
+            These scores help decide which model is more suitable for forecasting ratings.
             """)
             from sklearn.metrics import mean_squared_error
             lr_model = LinearRegression()
