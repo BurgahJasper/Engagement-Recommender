@@ -97,7 +97,7 @@ with col3:
 st.markdown("---")
 
 # Refresh and Randomize buttons in one row
-button_col1, button_col2, button_spacer = st.columns([1, 1, 6])
+button_col2, button_col1, button_spacer = st.columns([1, 1, 6])
 with button_col1:
     import time
     if "last_click" not in st.session_state:
