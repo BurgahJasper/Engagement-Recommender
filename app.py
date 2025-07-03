@@ -124,7 +124,8 @@ if user_input:
             model.fit(X, y)
             pred = model.predict(X)
 
-            chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=user_history['book_id'])
+            book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
+            chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
             st.line_chart(chart_data)
 
             st.subheader("Forecasted Ratings")
@@ -139,6 +140,7 @@ if user_input:
 
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
             future_preds = model.predict(future_books)
-            st.bar_chart(pd.Series(future_preds, index=future_books['book_id'], name="Forecasted Ratings"))
+            future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
+            st.bar_chart(pd.Series(future_preds, index=future_titles, name="Forecasted Ratings"))
     else:
         st.warning("User ID not found in dataset.")
