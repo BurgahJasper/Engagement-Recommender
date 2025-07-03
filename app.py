@@ -164,9 +164,40 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
             X = user_history[['book_id']]
             y = user_history['rating']
-            model = RandomForestRegressor(n_estimators=100, random_state=42)
-            model.fit(X, y)
-            pred = model.predict(X)
+            import torch
+            import torch.nn as nn
+            import torch.optim as optim
+
+            class BookRegressor(nn.Module):
+                def __init__(self, input_dim=1, hidden_dim=16):
+                    super().__init__()
+                    self.model = nn.Sequential(
+                        nn.Linear(input_dim, hidden_dim),
+                        nn.ReLU(),
+                        nn.Linear(hidden_dim, hidden_dim),
+                        nn.ReLU(),
+                        nn.Linear(hidden_dim, 1)
+                    )
+                def forward(self, x):
+                    return self.model(x)
+
+            def train_model(X_train, y_train, epochs=200):
+                model = BookRegressor()
+                criterion = nn.MSELoss()
+                optimizer = optim.Adam(model.parameters(), lr=0.01)
+                X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
+                y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
+                for _ in range(epochs):
+                    model.train()
+                    optimizer.zero_grad()
+                    output = model(X_tensor)
+                    loss = criterion(output, y_tensor)
+                    loss.backward()
+                    optimizer.step()
+                return model
+
+            model = train_model(X, y)
+            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
@@ -182,7 +213,8 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             """)
 
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
-            future_preds = model.predict(future_books)
+            future_tensor = torch.tensor(future_books['book_id'].values, dtype=torch.float32).unsqueeze(1)
+            future_preds = model(future_tensor).detach().numpy().flatten()
             future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
 
             fig2, ax2 = plt.subplots(figsize=(10, 3), facecolor='#0e1117')
