@@ -76,7 +76,7 @@ with st.sidebar:
 
 ratings, books = load_data()
 
-col1, col2, col3 = st.columns([1, 1, 2])
+col1, col2, col3, col4 = st.columns([1, 1, 2, 1])
 with col1:
     user_input = st.number_input("Enter User ID", min_value=1, max_value=5000, step=1, help="Type a user ID number from the dataset.")
 with col2:
@@ -92,13 +92,20 @@ with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
 
+with col4:
+    if st.button("Randomize Inputs"):
+        import random
+        user_input = random.randint(1, 5000)
+        confidence_threshold = round(random.uniform(0.0, 1.0), 2)
+        st.experimental_rerun()
+
 st.markdown("---")
 
 # Refresh button to apply filters only on demand
-if st.button("Refresh Recommendations", help="Click once to update based on selected filters."):
-    with st.spinner("Generating recommendations..."):
+refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.")
 
-            pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
+if refresh_clicked:
+    pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
         embeddings = generate_embeddings(pivot_table)  # Cached embedding computation
