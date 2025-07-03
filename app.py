@@ -220,38 +220,37 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
             st.line_chart(chart_data)
 
-            if compare_embedding:
-                st.subheader("Embedding Comparison Chart")
-                st.markdown("This shows how predictions differ using a Random Forest model trained on SVD embeddings versus raw book IDs.")
+            st.subheader("Embedding Comparison Chart")
+            st.markdown("This shows how predictions differ using a Random Forest model trained on SVD embeddings versus raw book IDs.")
 
-                # Model using embeddings (SVD)
-                # Generate embeddings from pivot table and map to books
-                pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
-                svd = TruncatedSVD(n_components=20, random_state=42)
-                book_embeddings = svd.fit_transform(pivot_table.T)
+            # Model using embeddings (SVD)
+            # Generate embeddings from pivot table and map to books
+            pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
+            svd = TruncatedSVD(n_components=20, random_state=42)
+            book_embeddings = svd.fit_transform(pivot_table.T)
 
-                book_id_to_index = {bid: idx for idx, bid in enumerate(pivot_table.columns)}
-                book_indices = [book_id_to_index[bid] for bid in user_history['book_id'] if bid in book_id_to_index]
-                X_embed = np.array([book_embeddings[idx] for idx in book_indices])
+            book_id_to_index = {bid: idx for idx, bid in enumerate(pivot_table.columns)}
+            book_indices = [book_id_to_index[bid] for bid in user_history['book_id'] if bid in book_id_to_index]
+            X_embed = np.array([book_embeddings[idx] for idx in book_indices])
 
-                rf_embed_model = RandomForestRegressor(n_estimators=100, random_state=42)
-                rf_embed_model.fit(X_embed, y)
-                embed_preds = rf_embed_model.predict(X_embed)
+            rf_embed_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            rf_embed_model.fit(X_embed, y)
+            embed_preds = rf_embed_model.predict(X_embed)
 
-                # Model without embeddings (raw book_id)
-                X_raw = user_history['book_id'].values.reshape(-1, 1)
-                rf_raw_model = RandomForestRegressor(n_estimators=100, random_state=42)
-                rf_raw_model.fit(X_raw, y)
-                raw_preds = rf_raw_model.predict(X_raw)
+            # Model without embeddings (raw book_id)
+            X_raw = user_history['book_id'].values.reshape(-1, 1)
+            rf_raw_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            rf_raw_model.fit(X_raw, y)
+            raw_preds = rf_raw_model.predict(X_raw)
 
-                # Comparison chart
-                compare_df = pd.DataFrame({
-                    "Actual Ratings": y.values,
-                    "With Embedding (SVD)": embed_preds,
-                    "Without Embedding (Raw Book ID)": raw_preds
-                }, index=book_titles)
+            # Comparison chart
+            compare_df = pd.DataFrame({
+                "Actual Ratings": y.values,
+                "With Embedding (SVD)": embed_preds,
+                "Without Embedding (Raw Book ID)": raw_preds
+            }, index=book_titles)
 
-                st.line_chart(compare_df)
+            st.line_chart(compare_df)
 
             st.subheader("Training Loss Curve")
             st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
