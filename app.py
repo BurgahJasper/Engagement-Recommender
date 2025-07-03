@@ -184,26 +184,35 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 def forward(self, x):
                     return self.model(x)
 
-            def train_model(X_train, y_train, epochs=200):
-                model = BookRegressor()
-                criterion = nn.MSELoss()
-                optimizer = optim.Adam(model.parameters(), lr=0.01)
-                X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
+            def train_model(X_train, y_train, epochs=300):
+                from sklearn.preprocessing import MinMaxScaler
+                scaler = MinMaxScaler()
+                X_scaled = scaler.fit_transform(X_train.values.reshape(-1, 1))
+                X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
+
+                model = BookRegressor(input_dim=1, hidden_dim=32)
+                criterion = nn.MSELoss()
+                optimizer = optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-4)
+                scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.9)
+
                 losses = []
-                for _ in range(epochs):
+                for epoch in range(epochs):  # ✅ Use the parameter here
                     model.train()
                     optimizer.zero_grad()
-                    output = model(X_tensor)
-                    loss = criterion(output.squeeze(), y_tensor.squeeze())
+                    outputs = model(X_tensor)
+                    loss = criterion(outputs, y_tensor)
                     loss.backward()
                     optimizer.step()
+                    scheduler.step()
                     losses.append(loss.item())
-                # Move loss curve rendering to after rating trends
-                return model, losses
 
-            model, losses = train_model(X, y)
-            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
+                return model, losses, scaler
+
+            model, losses, scaler = train_model(X, y)
+            X_scaled = scaler.transform(X.values.reshape(-1, 1))
+            pred = model(torch.tensor(X_scaled, dtype=torch.float32)).detach().numpy().flatten()
+
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
@@ -227,9 +236,10 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
 
             Forecasting shows expected interest in **brand new books**, while top predicted books reflect confidence in favorites.
             """)
-
+            
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
-            future_tensor = torch.tensor(future_books['book_id'].values, dtype=torch.float32).unsqueeze(1)
+            future_scaled = scaler.transform(future_books['book_id'].values.reshape(-1, 1))
+            future_tensor = torch.tensor(future_scaled, dtype=torch.float32)
             future_preds = model(future_tensor).detach().numpy().flatten()
             future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
 
