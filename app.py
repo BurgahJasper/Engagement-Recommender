@@ -92,7 +92,8 @@ if user_input:
         user_index = pivot_table.index.get_loc(user_input)
         sim_scores = list(enumerate(cosine_sim[user_index]))
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        top_users = [pivot_table.index[i[0]] for i in sim_scores[1:6] if sim_scores[i[0]][1] >= confidence_threshold]
+        # Avoid recomputing and crashing when similarity score excludes too many users
+top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
         st.write(top_users)
@@ -150,4 +151,5 @@ if user_input:
             ax2.xaxis.label.set_color('white')
             ax2.set_ylabel("Predicted Rating")
             plt.xticks(rotation=45, ha='right', fontsize=8)
+            ax2.set_title("Predicted Ratings for Unseen Books", color='white')
             st.pyplot(fig2)
