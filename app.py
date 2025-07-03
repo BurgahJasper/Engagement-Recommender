@@ -90,14 +90,12 @@ with col2:
     )
 with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
-    selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
-
-
+    selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language. This only affects the Recommended Books section.")
 
 st.markdown("---")
 
 # Refresh and Randomize buttons in one row
-button_col2, button_col1, button_spacer = st.columns([1, 1, 6])
+button_col2, button_col1 = st.columns([1, 1])
 with button_col1:
     import time
     if "last_click" not in st.session_state:
@@ -118,7 +116,9 @@ with button_col2:
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
 
-if refresh_clicked:
+if refresh_clicked and (user_input != st.session_state.get("previous_user") or confidence_threshold != st.session_state.get("previous_confidence")):
+    st.session_state["previous_user"] = user_input
+    st.session_state["previous_confidence"] = confidence_threshold
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
