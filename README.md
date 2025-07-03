@@ -2,6 +2,8 @@
 
 This Streamlit app recommends books and forecasts user preferences using collaborative filtering, machine learning, and neural network models. It is built using the [Goodbooks-10K dataset](https://github.com/zygmuntz/goodbooks-10k) and enables interactive exploration of engagement trends and model predictions.
 
+[Live Demo](https://jasper-engagement-recommender.streamlit.app/)
+
 ## Features
 
 - Personalized Recommendations
