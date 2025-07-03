@@ -186,7 +186,8 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
 
                 def forward(self, x):
                     embedded = self.embedding(x)
-                    return self.model(embedded)
+                    return self.model(embedded).squeeze(-1)  # removes last dimension
+
 
 
             def train_model(X_train, y_train, num_books, epochs=300):
