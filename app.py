@@ -188,8 +188,6 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     embedded = self.embedding(x)
                     return self.model(embedded).squeeze(-1)  # removes last dimension
 
-
-
             def train_model(X_train, y_train, num_books, epochs=300):
                 X_tensor = torch.tensor(X_train.values, dtype=torch.long)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
@@ -255,6 +253,14 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             plt.xticks(rotation=45, ha='right', fontsize=8)
             ax2.set_title("Predicted Ratings for Unseen Books", color='white')
             st.pyplot(fig2)
+
+            st.markdown("---")
+            with st.expander("Predict Rating for a Specific Book ID"):
+                book_id_input = st.number_input("Enter a Book ID to Predict Rating", min_value=1, max_value=num_books-1, step=1)
+                if st.button("Get Prediction", key="predict_button"):
+                    book_tensor = torch.tensor([book_id_input], dtype=torch.long)
+                    predicted_score = model(book_tensor).item()
+                    st.success(f"Predicted rating for Book ID {book_id_input}: **{predicted_score:.2f}**")
 
             from sklearn.metrics import mean_squared_error
             lr_model = LinearRegression()
