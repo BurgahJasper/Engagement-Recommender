@@ -206,8 +206,8 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             lr_model = LinearRegression()
             lr_model.fit(X, y)
             lr_preds = lr_model.predict(X)
-            rf_rmse = mean_squared_error(y, pred, squared=False)
-            lr_rmse = mean_squared_error(y, lr_preds, squared=False)
+            rf_rmse = np.sqrt(mean_squared_error(y, pred))
+            lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
             st.write(pd.DataFrame({"Model": ["Random Forest", "Linear Regression"], "RMSE": [rf_rmse, lr_rmse]}))
 
             st.subheader("Feature Importance")
