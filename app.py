@@ -92,12 +92,10 @@ with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language. This only affects the Recommended Books section.")
 
-
-
 st.markdown("---")
 
 # Refresh and Randomize buttons in one row
-button_col2, button_col1 = st.columns([0.06, 0.06])
+button_col2, button_col1 = st.columns([0.6, 0.6])
 with button_col1:
     import time
     if "last_click" not in st.session_state:
@@ -199,3 +197,64 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             plt.xticks(rotation=45, ha='right', fontsize=8)
             ax2.set_title("Predicted Ratings for Unseen Books", color='white')
             st.pyplot(fig2)
+
+            st.subheader("Model Comparison")
+            st.markdown("""
+            This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**. This shows how different algorithms affect predictions.
+            """)
+            from sklearn.metrics import mean_squared_error
+            lr_model = LinearRegression()
+            lr_model.fit(X, y)
+            lr_preds = lr_model.predict(X)
+            rf_rmse = mean_squared_error(y, pred, squared=False)
+            lr_rmse = mean_squared_error(y, lr_preds, squared=False)
+            st.write(pd.DataFrame({"Model": ["Random Forest", "Linear Regression"], "RMSE": [rf_rmse, lr_rmse]}))
+
+            st.subheader("Feature Importance")
+            st.markdown("""
+            This shows which book IDs were most influential in forecasting the user's preferences, based on Random Forest feature importances.
+            """)
+            importance_df = pd.DataFrame({
+                "Book ID": X['book_id'],
+                "Importance": model.feature_importances_
+            }).sort_values("Importance", ascending=False).head(5)
+            importance_df["Title"] = books.set_index("book_id").loc[importance_df["Book ID"]]["title"].values
+            st.dataframe(importance_df[["Book ID", "Title", "Importance"]])
+
+            st.subheader("User Clustering")
+            st.markdown("""
+            This demonstrates unsupervised learning by assigning the selected user to a cluster of similar users, based on SVD embeddings.
+            Below is a t-SNE projection showing clusters in 2D space.
+            """)
+            from sklearn.manifold import TSNE
+            import seaborn as sns
+            import matplotlib.pyplot as plt
+
+            tsne = TSNE(n_components=2, random_state=42, perplexity=30)
+            tsne_result = tsne.fit_transform(embeddings)
+            cluster_df = pd.DataFrame(tsne_result, columns=['x', 'y'])
+            cluster_df['cluster'] = cluster_labels
+            cluster_df['selected'] = [i == user_index for i in range(len(cluster_df))]
+
+            fig_tsne, ax_tsne = plt.subplots(figsize=(8, 5))
+            sns.scatterplot(data=cluster_df, x='x', y='y', hue='cluster', palette='tab10', style='selected', s=100, ax=ax_tsne)
+            plt.title("t-SNE Visualization of User Clusters", fontsize=12)
+            st.pyplot(fig_tsne)
+
+            st.write(f"Selected user belongs to **Cluster {user_cluster}**")
+
+            st.subheader("Recommendation Diversity")
+            st.markdown("""
+            A simple analysis of author diversity and rating variance among the recommended books.
+            """)
+            diversity_score = rec_books['authors'].nunique()
+            rating_std = rec_books['average_rating'].std()
+            st.write(f"- Authors represented: {diversity_score}")
+            st.write(f"- Rating standard deviation: {rating_std:.2f}")
+
+            st.subheader("Downloadable Report")
+            st.markdown("""
+            You can export your recommendations and insights into a downloadable CSV file.
+            """)
+            csv_data = rec_books.to_csv().encode('utf-8')
+            st.download_button("📥 Download Recommendations CSV", data=csv_data, file_name="recommendations.csv", mime="text/csv")
