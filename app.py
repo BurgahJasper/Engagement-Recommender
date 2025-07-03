@@ -167,37 +167,39 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
             X = user_history[['book_id']]
             y = user_history['rating']
+            num_books = books['book_id'].max() + 1  # Total number of books for the embedding layer
             import torch
             import torch.nn as nn
             import torch.optim as optim
 
-            class BookRegressor(nn.Module):
-                def __init__(self, input_dim=1, hidden_dim=16):
+            class BookEmbeddingRegressor(nn.Module):
+                def __init__(self, num_books, embed_dim=16, hidden_dim=32):
                     super().__init__()
+                    self.embedding = nn.Embedding(num_books, embed_dim)
                     self.model = nn.Sequential(
-                        nn.Linear(input_dim, hidden_dim),
+                        nn.Linear(embed_dim, hidden_dim),
                         nn.ReLU(),
                         nn.Linear(hidden_dim, hidden_dim),
                         nn.ReLU(),
                         nn.Linear(hidden_dim, 1)
                     )
-                def forward(self, x):
-                    return self.model(x)
 
-            def train_model(X_train, y_train, epochs=300):
-                from sklearn.preprocessing import MinMaxScaler
-                scaler = MinMaxScaler()
-                X_scaled = scaler.fit_transform(X_train.values.reshape(-1, 1))
-                X_tensor = torch.tensor(X_scaled, dtype=torch.float32)
+                def forward(self, x):
+                    embedded = self.embedding(x)
+                    return self.model(embedded)
+
+
+            def train_model(X_train, y_train, num_books, epochs=300):
+                X_tensor = torch.tensor(X_train.values, dtype=torch.long)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
 
-                model = BookRegressor(input_dim=1, hidden_dim=32)
+                model = BookEmbeddingRegressor(num_books=num_books, embed_dim=16, hidden_dim=32)
                 criterion = nn.MSELoss()
                 optimizer = optim.AdamW(model.parameters(), lr=0.005, weight_decay=1e-4)
                 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.9)
 
                 losses = []
-                for epoch in range(epochs):  # ✅ Use the parameter here
+                for epoch in range(epochs):
                     model.train()
                     optimizer.zero_grad()
                     outputs = model(X_tensor)
@@ -207,12 +209,11 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     scheduler.step()
                     losses.append(loss.item())
 
-                return model, losses, scaler
+                return model, losses
 
-            model, losses, scaler = train_model(X, y)
-            X_scaled = scaler.transform(X.values.reshape(-1, 1))
-            pred = model(torch.tensor(X_scaled, dtype=torch.float32)).detach().numpy().flatten()
-
+            model, losses = train_model(X, y, num_books=num_books)
+            X_tensor = torch.tensor(X.values, dtype=torch.long)
+            pred = model(X_tensor).detach().numpy().flatten()
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
