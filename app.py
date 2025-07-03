@@ -165,15 +165,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
         if len(user_history) >= 5:
             st.subheader("Rating Trends")
             st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
-            book_features = generate_embeddings(pivot_table)
-            book_id_to_idx = {bid: idx for idx, bid in enumerate(pivot_table.columns)}
-
-            # Filter only known books that have SVD features
-            valid_books = user_history['book_id'].isin(book_id_to_idx)
-            user_history = user_history[valid_books]
-            X = user_history['book_id'].apply(lambda x: book_features[:, book_id_to_idx[x]])
-            X = np.vstack(X.values)
-
+            X = user_history[['book_id']]
             y = user_history['rating']
             import torch
             import torch.nn as nn
@@ -196,7 +188,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 model = BookRegressor()
                 criterion = nn.MSELoss()
                 optimizer = optim.Adam(model.parameters(), lr=0.01)
-                X_tensor = torch.tensor(X, dtype=torch.float32)
+                X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
                 losses = []
                 for _ in range(epochs):
@@ -211,7 +203,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 return model, losses
 
             model, losses = train_model(X, y)
-            pred = model(torch.tensor(X, dtype=torch.float32)).detach().numpy().flatten()
+            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
@@ -219,7 +211,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
 
             st.subheader("Training Loss Curve")
             st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
-            fig, ax = plt.subplots(figsize=(10, 3), facecolor='#0e1117')
+            fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
             ax.plot(losses, color='lightblue')
             ax.set_title("PyTorch Neural Network Training Loss", color='white')
             ax.set_xlabel("Epoch", color='white')
