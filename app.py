@@ -78,13 +78,13 @@ ratings, books = load_data()
 
 col1, col2, col3, col4 = st.columns([1, 1, 2, 1])
 with col1:
-    user_input = st.number_input("Enter User ID", min_value=1, max_value=5000, step=1, help="Type a user ID number from the dataset.")
+    user_input = st.number_input("Enter User ID", min_value=1, max_value=5000, step=1, value=st.session_state.get("user_input", 1), help="Type a user ID number from the dataset.")
 with col2:
     confidence_threshold = st.slider(
         "Minimum Similarity Score",
         min_value=0.0,
         max_value=1.0,
-        value=0.5,
+        value=st.session_state.get("confidence_threshold", 0.5),
         step=0.05,
         help="Only show similar users above this similarity score."
     )
@@ -93,11 +93,11 @@ with col3:
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
 
 with col4:
+    import random
     if st.button("Randomize Inputs"):
-        import random
-        user_input = random.randint(1, 5000)
-        confidence_threshold = round(random.uniform(0.0, 1.0), 2)
-        st.experimental_rerun()
+        st.session_state["user_input"] = random.randint(1, 5000)
+        st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
+        st.rerun()
 
 st.markdown("---")
 
