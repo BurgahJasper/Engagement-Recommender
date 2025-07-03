@@ -1,4 +1,3 @@
-# engagement_recommender/app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,6 +6,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import TruncatedSVD
 from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 st.set_page_config(page_title="Engagement Recommender", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
@@ -53,29 +55,8 @@ def load_data():
 
 @st.cache_data
 def generate_embeddings(pivot_table):
-    # Perform SVD only once and cache it
     svd = TruncatedSVD(n_components=20, random_state=42)
     return svd.fit_transform(pivot_table)
-
-# Sidebar description for users
-with st.sidebar:
-    st.header("About this App")
-    st.markdown("""
-    This interactive recommender system was built using the Goodbooks-10K dataset.
-
-    **Purpose:**
-    - Demonstrate collaborative filtering using SVD (latent embeddings)
-    - Forecast user behavior using machine learning
-    - Allow filter-based exploration of book recommendations
-
-    **Technologies used:**
-    - Streamlit for interactive UI
-    - Scikit-learn for ML and recommendations
-    - Pandas & NumPy for data handling
-    - Random Forest for forecasting future ratings
-
-    Developed by Jasper Maximo Garcia
-    """)
 
 ratings, books = load_data()
 
@@ -97,7 +78,6 @@ with col3:
 
 st.markdown("---")
 
-# Refresh and Randomize buttons in one row
 button_col2, button_col1 = st.columns([0.6, 0.6])
 with button_col1:
     import time
@@ -118,9 +98,6 @@ with button_col2:
         st.session_state["user_input"] = random.randint(1, 5000)
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
-        st.session_state["user_input"] = random.randint(1, 5000)
-        st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
-        st.rerun()
 
 if refresh_clicked and (user_input != st.session_state.get("previous_user") or confidence_threshold != st.session_state.get("previous_confidence")):
     st.session_state["previous_user"] = user_input
@@ -128,13 +105,12 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
-        embeddings = generate_embeddings(pivot_table)  # Cached embedding computation
+        embeddings = generate_embeddings(pivot_table)
         cosine_sim = cosine_similarity(embeddings)
 
         user_index = pivot_table.index.get_loc(user_input)
         sim_scores = list(enumerate(cosine_sim[user_index]))
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        # Avoid recomputing and crashing when similarity score excludes too many users
         top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
@@ -142,146 +118,128 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
         for i, uid in enumerate(top_users):
             st.markdown(f"<span style='color:#bbb;font-size:16px'>👤 <strong>User {uid}</strong> — Similarity Rank #{i+1}</span>", unsafe_allow_html=True)
 
-        user_ratings = pivot_table.loc[user_input]
-        unrated_books = user_ratings[user_ratings == 0].index
-        avg_ratings = pivot_table.loc[top_users, unrated_books].mean()
-
-        if selected_languages:
-            book_meta = books[['book_id', 'language_code']]
-            filtered_books = book_meta[book_meta['language_code'].isin(selected_languages)]['book_id']
-            avg_ratings = avg_ratings[avg_ratings.index.isin(filtered_books)]
-
-        top_recs = avg_ratings.sort_values(ascending=False).head(5)
-        st.subheader("Recommended Books")
-        st.markdown("These recommendations are predicted based on books rated highly by users with similar preferences, filtered optionally by language.")
-
-        # Enrich top recommended books with metadata
-        rec_books = books[books['book_id'].isin(top_recs.index)][['book_id', 'title', 'authors', 'original_publication_year', 'average_rating']]
-        rec_books = rec_books.set_index('book_id').loc[top_recs.index]  # Keep top rec order
-        rec_books["Estimated Rating"] = top_recs.values
-        st.dataframe(rec_books)
-
         user_history = ratings[ratings['user_id'] == user_input].sort_values('book_id')
-        if len(user_history) >= 5:
-            st.subheader("Rating Trends")
-            st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
-            X = user_history[['book_id']]
-            y = user_history['rating']
-            import torch
-            import torch.nn as nn
-            import torch.optim as optim
+        X = user_history[['book_id']].copy()
+        y = user_history['rating']
+        X['book_id_cat'] = X['book_id'].astype('category').cat.codes
+        n_books = X['book_id_cat'].nunique()
 
-            class BookRegressor(nn.Module):
-                def __init__(self, input_dim=1, hidden_dim=16):
-                    super().__init__()
-                    self.model = nn.Sequential(
-                        nn.Linear(input_dim, hidden_dim),
-                        nn.ReLU(),
-                        nn.Linear(hidden_dim, hidden_dim),
-                        nn.ReLU(),
-                        nn.Linear(hidden_dim, 1)
-                    )
-                def forward(self, x):
-                    return self.model(x)
+        class BookEmbeddingRegressor(nn.Module):
+            def __init__(self, n_books, hidden_dim=16):
+                super().__init__()
+                self.embedding = nn.Embedding(n_books + 1, 8)
+                self.model = nn.Sequential(
+                    nn.Linear(8, hidden_dim),
+                    nn.ReLU(),
+                    nn.Linear(hidden_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Linear(hidden_dim, 1)
+                )
+            def forward(self, x):
+                x = self.embedding(x)
+                return self.model(x)
 
-            def train_model(X_train, y_train, epochs=200):
-                model = BookRegressor()
-                criterion = nn.MSELoss()
-                optimizer = optim.Adam(model.parameters(), lr=0.01)
-                X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
-                y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
-                losses = []
-                for _ in range(epochs):
-                    model.train()
-                    optimizer.zero_grad()
-                    output = model(X_tensor)
-                    loss = criterion(output.squeeze(), y_tensor.squeeze())
-                    loss.backward()
-                    optimizer.step()
-                    losses.append(loss.item())
-                # Move loss curve rendering to after rating trends
-                return model, losses
+        def train_model(X_train, y_train, epochs=200):
+            model = BookEmbeddingRegressor(n_books)
+            criterion = nn.MSELoss()
+            optimizer = optim.Adam(model.parameters(), lr=0.01)
+            X_tensor = torch.tensor(X_train['book_id_cat'].values, dtype=torch.long)
+            y_tensor = torch.tensor(y_train.values, dtype=torch.float32)
+            losses = []
+            for _ in range(epochs):
+                model.train()
+                optimizer.zero_grad()
+                output = model(X_tensor).squeeze()
+                loss = criterion(output, y_tensor)
+                loss.backward()
+                optimizer.step()
+                losses.append(loss.item())
+            return model, losses
 
-            model, losses = train_model(X, y)
-            pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
+        model, losses = train_model(X, y)
+        X_tensor = torch.tensor(X['book_id_cat'].values, dtype=torch.long)
+        pred = model(X_tensor).detach().numpy()
 
-            book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
-            chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
-            st.line_chart(chart_data)
+        book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
+        chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
 
-            st.subheader("Training Loss Curve")
-            st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
-            fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
-            ax.plot(losses, color='lightblue')
-            ax.set_title("PyTorch Neural Network Training Loss", color='white')
-            ax.set_xlabel("Epoch", color='white')
-            ax.set_ylabel("Loss", color='white')
-            ax.tick_params(colors='white')
-            st.pyplot(fig)
+        st.subheader("Rating Trends")
+        st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
+        st.line_chart(chart_data)
 
-            st.subheader("Forecasted Ratings")
-            st.markdown("""
-            These ratings are predictions of how this user might rate **unseen books** in the future, based on their past behavior and a trained Random Forest model.
+        st.subheader("Training Loss Curve")
+        st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
+        fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
+        ax.plot(losses, color='lightblue')
+        ax.set_title("PyTorch Neural Network Training Loss", color='white')
+        ax.set_xlabel("Epoch", color='white')
+        ax.set_ylabel("Loss", color='white')
+        ax.tick_params(colors='white')
+        st.pyplot(fig)
 
-            This differs from the **Top Predicted Books** section, which shows high scores for books the user has already rated (or rated-like books).
+        st.subheader("Forecasted Ratings")
+        st.markdown("""
+        These ratings are predictions of how this user might rate **unseen books** in the future, based on their past behavior and a trained Random Forest model.
 
-            Forecasting shows expected interest in **brand new books**, while top predicted books reflect confidence in favorites.
-            """)
+        This differs from the **Top Predicted Books** section, which shows high scores for books the user has already rated (or rated-like books).
 
-            future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
-            future_tensor = torch.tensor(future_books['book_id'].values, dtype=torch.float32).unsqueeze(1)
-            future_preds = model(future_tensor).detach().numpy().flatten()
-            future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
+        Forecasting shows expected interest in **brand new books**, while top predicted books reflect confidence in favorites.
+        """)
 
-            fig2, ax2 = plt.subplots(figsize=(10, 3), facecolor='#0e1117')
-            pd.Series(future_preds, index=future_titles, name="Forecasted Ratings").plot(kind='bar', ax=ax2, color='skyblue')
-            ax2.set_facecolor('#0e1117')
-            ax2.tick_params(colors='white')
-            ax2.yaxis.label.set_color('white')
-            ax2.xaxis.label.set_color('white')
-            ax2.set_xlabel("")
-            ax2.set_ylabel("Predicted Rating")
-            plt.xticks(rotation=45, ha='right', fontsize=8)
-            ax2.set_title("Predicted Ratings for Unseen Books", color='white')
-            st.pyplot(fig2)
+        future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
+        future_tensor = torch.tensor(future_books['book_id'].values, dtype=torch.float32).unsqueeze(1)
+        future_preds = model(future_tensor).detach().numpy().flatten()
+        future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
 
-            from sklearn.metrics import mean_squared_error
-            lr_model = LinearRegression()
-            lr_model.fit(X, y)
-            lr_preds = lr_model.predict(X)
-            rf_rmse = np.sqrt(mean_squared_error(y, pred))
-            lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
+        fig2, ax2 = plt.subplots(figsize=(10, 3), facecolor='#0e1117')
+        pd.Series(future_preds, index=future_titles, name="Forecasted Ratings").plot(kind='bar', ax=ax2, color='skyblue')
+        ax2.set_facecolor('#0e1117')
+        ax2.tick_params(colors='white')
+        ax2.yaxis.label.set_color('white')
+        ax2.xaxis.label.set_color('white')
+        ax2.set_xlabel("")
+        ax2.set_ylabel("Predicted Rating")
+        plt.xticks(rotation=45, ha='right', fontsize=8)
+        ax2.set_title("Predicted Ratings for Unseen Books", color='white')
+        st.pyplot(fig2)
 
-            st.subheader("Model Comparison")
-            st.markdown(f"""
-            This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**.
+        from sklearn.metrics import mean_squared_error
+        lr_model = LinearRegression()
+        lr_model.fit(X, y)
+        lr_preds = lr_model.predict(X)
+        rf_rmse = np.sqrt(mean_squared_error(y, pred))
+        lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
 
-            The **Root Mean Squared Error (RMSE)** measures how closely each model's predictions align with the actual ratings:
-            - A **lower RMSE** means the model makes more accurate predictions.
-            - In this case:
-              - Random Forest RMSE: **{rf_rmse:.4f}** — captures complex user behavior well
-              - Linear Regression RMSE: **{lr_rmse:.4f}** — simpler, but less flexible
+        st.subheader("Model Comparison")
+        st.markdown(f"""
+        This section compares forecasting performance across two ML models: **Random Forest** and **Linear Regression**.
 
-            These scores help decide which model is more suitable for forecasting ratings.
-            """)
+        The **Root Mean Squared Error (RMSE)** measures how closely each model's predictions align with the actual ratings:
+        - A **lower RMSE** means the model makes more accurate predictions.
+        - In this case:
+            - Random Forest RMSE: **{rf_rmse:.4f}** — captures complex user behavior well
+            - Linear Regression RMSE: **{lr_rmse:.4f}** — simpler, but less flexible
 
-            from sklearn.metrics import mean_squared_error
-            lr_model = LinearRegression()
-            lr_model.fit(X, y)
-            lr_preds = lr_model.predict(X)
-            rf_rmse = np.sqrt(mean_squared_error(y, pred))
-            lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
-            st.write(pd.DataFrame({"Model": ["Random Forest", "Linear Regression"], "RMSE": [rf_rmse, lr_rmse]}))
+        These scores help decide which model is more suitable for forecasting ratings.
+        """)
 
-            st.subheader("Top Predicted Books")
-            st.markdown("""
-            This shows the books with the highest predicted ratings for the user, inferred from their past preferences. This is a proxy for feature influence when only one input feature (book ID) is used.
-            """)
-            importance_df = pd.DataFrame({
-                "Book ID": X['book_id'],
-                "Predicted Rating": pred
-            }).copy()
+        from sklearn.metrics import mean_squared_error
+        lr_model = LinearRegression()
+        lr_model.fit(X, y)
+        lr_preds = lr_model.predict(X)
+        rf_rmse = np.sqrt(mean_squared_error(y, pred))
+        lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
+        st.write(pd.DataFrame({"Model": ["Random Forest", "Linear Regression"], "RMSE": [rf_rmse, lr_rmse]}))
 
-            importance_df["Title"] = books.set_index("book_id").loc[importance_df["Book ID"]]["title"].values
-            importance_df = importance_df.sort_values("Predicted Rating", ascending=False).drop_duplicates("Book ID").head(5)
-            st.dataframe(importance_df[["Book ID", "Title", "Predicted Rating"]].reset_index(drop=True))
+        st.subheader("Top Predicted Books")
+        st.markdown("""
+        This shows the books with the highest predicted ratings for the user, inferred from their past preferences. This is a proxy for feature influence when only one input feature (book ID) is used.
+        """)
+        importance_df = pd.DataFrame({
+            "Book ID": X['book_id'],
+            "Predicted Rating": pred
+        }).copy()
+
+        importance_df["Title"] = books.set_index("book_id").loc[importance_df["Book ID"]]["title"].values
+        importance_df = importance_df.sort_values("Predicted Rating", ascending=False).drop_duplicates("Book ID").head(5)
+        st.dataframe(importance_df[["Book ID", "Title", "Predicted Rating"]].reset_index(drop=True))
