@@ -38,7 +38,10 @@ This app uses collaborative filtering and machine learning to recommend books an
 **Behind the scenes:**
 - The app uses **Truncated SVD** to generate user embeddings and compute user similarity.
 - Based on similar users' ratings, it suggests books you haven’t rated yet.
-- It trains a **Random Forest model** to forecast your future book preferences.
+- It trains a **Random Forest model** and a **PyTorch neural network** to forecast your future book preferences.
+- **Top Predicted Books** shows predicted ratings for books already rated.
+- **Forecasted Ratings** predicts ratings for new/unseen books.
+- **Training Loss Curve** visualizes learning over time for the PyTorch model.
 """)
 
 @st.cache_data
@@ -192,27 +195,29 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     model.train()
                     optimizer.zero_grad()
                     output = model(X_tensor)
-                    loss = criterion(output, y_tensor)
+                    loss = criterion(output.squeeze(), y_tensor.squeeze())
                     loss.backward()
                     optimizer.step()
                     losses.append(loss.item())
-                # Plot the loss curve
-                st.subheader("Training Loss Curve")
-                fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
-                ax.plot(losses, color='lightblue')
-                ax.set_title("PyTorch Neural Network Training Loss", color='white')
-                ax.set_xlabel("Epoch", color='white')
-                ax.set_ylabel("Loss", color='white')
-                ax.tick_params(colors='white')
-                st.pyplot(fig)
-                return model
+                # Move loss curve rendering to after rating trends
+                return model, losses
 
-            model = train_model(X, y)
+            model, losses = train_model(X, y)
             pred = model(torch.tensor(X.values, dtype=torch.float32).unsqueeze(1)).detach().numpy().flatten()
 
             book_titles = books.set_index('book_id').loc[user_history['book_id']]['title']
             chart_data = pd.DataFrame({"Actual Ratings": y.values, "Predicted Ratings": pred}, index=book_titles)
             st.line_chart(chart_data)
+
+            st.subheader("Training Loss Curve")
+            st.markdown("Visualizes how the PyTorch neural network improves its predictions over each training epoch.")
+            fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
+            ax.plot(losses, color='lightblue')
+            ax.set_title("PyTorch Neural Network Training Loss", color='white')
+            ax.set_xlabel("Epoch", color='white')
+            ax.set_ylabel("Loss", color='white')
+            ax.tick_params(colors='white')
+            st.pyplot(fig)
 
             st.subheader("Forecasted Ratings")
             st.markdown("""
