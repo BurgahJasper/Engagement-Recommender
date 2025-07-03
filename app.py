@@ -118,7 +118,8 @@ if refresh_clicked:
         top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
-        st.write(top_users)
+        for i, uid in enumerate(top_users):
+            st.markdown(f"<span style='color:#bbb;font-size:16px'>👤 <strong>User {uid}</strong> — Similarity Rank #{i+1}</span>", unsafe_allow_html=True)
 
         user_ratings = pivot_table.loc[user_input]
         unrated_books = user_ratings[user_ratings == 0].index
