@@ -225,9 +225,18 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 st.markdown("This shows how predictions differ using a Random Forest model trained on SVD embeddings versus raw book IDs.")
 
                 # Model using embeddings (SVD)
+                # Generate embeddings from pivot table and map to books
+                pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
+                svd = TruncatedSVD(n_components=20, random_state=42)
+                book_embeddings = svd.fit_transform(pivot_table.T)
+
+                book_id_to_index = {bid: idx for idx, bid in enumerate(pivot_table.columns)}
+                book_indices = [book_id_to_index[bid] for bid in user_history['book_id'] if bid in book_id_to_index]
+                X_embed = np.array([book_embeddings[idx] for idx in book_indices])
+
                 rf_embed_model = RandomForestRegressor(n_estimators=100, random_state=42)
-                rf_embed_model.fit(X, y)
-                embed_preds = rf_embed_model.predict(X)
+                rf_embed_model.fit(X_embed, y)
+                embed_preds = rf_embed_model.predict(X_embed)
 
                 # Model without embeddings (raw book_id)
                 X_raw = user_history['book_id'].values.reshape(-1, 1)
