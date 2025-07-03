@@ -102,7 +102,24 @@ with col4:
 st.markdown("---")
 
 # Refresh button to apply filters only on demand
-refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.")
+col_button = st.columns([4, 1, 1, 4])
+with col_button[1]:
+    import time
+if "last_click" not in st.session_state:
+    st.session_state["last_click"] = 0
+
+cooldown_seconds = 2
+now = time.time()
+can_click = now - st.session_state["last_click"] > cooldown_seconds
+
+refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.", disabled=not can_click)
+if refresh_clicked:
+    st.session_state["last_click"] = now
+with col_button[2]:
+    if st.button("Randomize Inputs"):
+        st.session_state["user_input"] = random.randint(1, 5000)
+        st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
+        st.rerun()
 
 if refresh_clicked:
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
@@ -118,6 +135,7 @@ if refresh_clicked:
         top_users = [pivot_table.index[i[0]] for i in sim_scores[1:] if sim_scores[i[0]][1] >= confidence_threshold][:5]
 
         st.subheader("Top Similar Users")
+        st.markdown("These are the five most similar users to the selected user, based on collaborative filtering and cosine similarity of their book rating patterns.")
         for i, uid in enumerate(top_users):
             st.markdown(f"<span style='color:#bbb;font-size:16px'>👤 <strong>User {uid}</strong> — Similarity Rank #{i+1}</span>", unsafe_allow_html=True)
 
@@ -132,6 +150,7 @@ if refresh_clicked:
 
         top_recs = avg_ratings.sort_values(ascending=False).head(5)
         st.subheader("Recommended Books")
+        st.markdown("These recommendations are predicted based on books rated highly by users with similar preferences, filtered optionally by language.")
 
         # Enrich top recommended books with metadata
         rec_books = books[books['book_id'].isin(top_recs.index)][['book_id', 'title', 'authors', 'original_publication_year', 'average_rating']]
@@ -142,6 +161,7 @@ if refresh_clicked:
         user_history = ratings[ratings['user_id'] == user_input].sort_values('book_id')
         if len(user_history) >= 5:
             st.subheader("Rating Trends")
+            st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
             X = user_history[['book_id']]
             y = user_history['rating']
             model = RandomForestRegressor(n_estimators=100, random_state=42)
