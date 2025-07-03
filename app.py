@@ -210,16 +210,18 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
             lr_rmse = np.sqrt(mean_squared_error(y, lr_preds))
             st.write(pd.DataFrame({"Model": ["Random Forest", "Linear Regression"], "RMSE": [rf_rmse, lr_rmse]}))
 
-            st.subheader("Feature Importance")
+            st.subheader("Top Predicted Books")
             st.markdown("""
-            This shows which book IDs were most influential in forecasting the user's preferences, based on Random Forest feature importances.
+            This shows the books with the highest predicted ratings for the user, inferred from their past preferences. This is a proxy for feature influence when only one input feature (book ID) is used.
             """)
             importance_df = pd.DataFrame({
                 "Book ID": X['book_id'],
-                "Importance": model.feature_importances_
-            }).sort_values("Importance", ascending=False).head(5)
+                "Predicted Rating": pred
+            }).copy()
+
             importance_df["Title"] = books.set_index("book_id").loc[importance_df["Book ID"]]["title"].values
-            st.dataframe(importance_df[["Book ID", "Title", "Importance"]])
+            importance_df = importance_df.sort_values("Predicted Rating", ascending=False).drop_duplicates("Book ID").head(5)
+            st.dataframe(importance_df[["Book ID", "Title", "Predicted Rating"]])
 
             st.subheader("User Clustering")
             st.markdown("""
