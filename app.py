@@ -108,7 +108,12 @@ if user_input:
 
         top_recs = avg_ratings.sort_values(ascending=False).head(5)
         st.subheader("Recommended Books")
-        st.dataframe(top_recs.rename("Estimated Rating"))
+
+        # Enrich top recommended books with metadata
+        rec_books = books[books['book_id'].isin(top_recs.index)][['book_id', 'title', 'authors', 'original_publication_year', 'average_rating']]
+        rec_books = rec_books.set_index('book_id').loc[top_recs.index]  # Keep top rec order
+        rec_books["Estimated Rating"] = top_recs.values
+        st.dataframe(rec_books)
 
         user_history = ratings[ratings['user_id'] == user_input].sort_values('book_id')
         if len(user_history) >= 5:
@@ -123,6 +128,15 @@ if user_input:
             st.line_chart(chart_data)
 
             st.subheader("Forecasted Ratings")
+
+            # Show explanation of what forecasting means
+            st.markdown("""
+            These ratings are predictions of how this user might rate unseen books in the future,
+            based on their past behavior and using a trained Random Forest model.
+
+            Higher values (closer to 5) mean the model believes the user is likely to enjoy similar books.
+            """)
+
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
             future_preds = model.predict(future_books)
             st.bar_chart(pd.Series(future_preds, index=future_books['book_id'], name="Forecasted Ratings"))
