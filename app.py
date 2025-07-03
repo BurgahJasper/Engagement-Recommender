@@ -141,6 +141,9 @@ if user_input:
             future_books = pd.DataFrame({'book_id': range(user_history['book_id'].max() + 1, user_history['book_id'].max() + 6)})
             future_preds = model.predict(future_books)
             future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
-            st.bar_chart(pd.Series(future_preds, index=future_titles, name="Forecasted Ratings"))
-    else:
-        st.warning("User ID not found in dataset.")
+
+            fig2, ax2 = plt.subplots(figsize=(12, 4))
+            pd.Series(future_preds, index=future_titles, name="Forecasted Ratings").plot(kind='bar', ax=ax2, color='skyblue')
+            ax2.set_ylabel("Predicted Rating")
+            plt.xticks(rotation=45, ha='right', fontsize=8)
+            st.pyplot(fig2)
