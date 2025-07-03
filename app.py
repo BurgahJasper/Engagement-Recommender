@@ -92,10 +92,12 @@ with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language. This only affects the Recommended Books section.")
 
+
+
 st.markdown("---")
 
 # Refresh and Randomize buttons in one row
-button_col2, button_col1 = st.columns([1, 1])
+button_col2, button_col1 = st.columns([0.6, 0.6])
 with button_col1:
     import time
     if "last_click" not in st.session_state:
@@ -103,7 +105,10 @@ with button_col1:
     cooldown_seconds = 2
     now = time.time()
     can_click = now - st.session_state["last_click"] > cooldown_seconds
-    refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters.", disabled=not can_click)
+    refresh_disabled = not can_click or (user_input == st.session_state.get("previous_user") and confidence_threshold == st.session_state.get("previous_confidence"))
+    if refresh_disabled:
+        st.warning("⚠️ Change User ID or Similarity Score to enable refreshing recommendations.", icon="⚠️")
+    refresh_clicked = st.button("Refresh Recommendations", help="Click once to update based on selected filters. Make sure to change User ID or Similarity Score first.", disabled=refresh_disabled)
     if refresh_clicked:
         st.session_state["last_click"] = now
 with button_col2:
