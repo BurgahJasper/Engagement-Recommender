@@ -7,6 +7,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import TruncatedSVD
 from sklearn.ensemble import RandomForestRegressor
 import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 st.set_page_config(page_title="Engagement Recommender", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
@@ -121,6 +124,41 @@ with button_col2:
         st.session_state["user_input"] = random.randint(1, 5000)
         st.session_state["confidence_threshold"] = round(random.uniform(0.0, 1.0), 2)
         st.rerun()
+
+# Fix learning and prediction accuracy using new PyTorch model design
+class SimpleMLP(nn.Module):
+    def __init__(self, input_dim):
+        super(SimpleMLP, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(input_dim, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
+def train_model(X, y):
+    X_tensor = torch.tensor(X, dtype=torch.float32)
+    y_tensor = torch.tensor(y, dtype=torch.float32).view(-1, 1)
+    model = SimpleMLP(X.shape[1])
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.MSELoss()
+
+    losses = []
+    for epoch in range(200):
+        model.train()
+        optimizer.zero_grad()
+        output = model(X_tensor)
+        loss = criterion(output, y_tensor)
+        loss.backward()
+        optimizer.step()
+        losses.append(loss.item())
+
+    return model, losses
+
 
 if refresh_clicked and (user_input != st.session_state.get("previous_user") or confidence_threshold != st.session_state.get("previous_confidence")):
     st.session_state["previous_user"] = user_input
