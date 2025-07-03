@@ -76,21 +76,24 @@ with col1:
     user_input = st.number_input("Enter User ID", min_value=1, max_value=5000, step=1, help="Type a user ID number from the dataset.")
 with col2:
     confidence_threshold = st.slider(
-    "Minimum Similarity Score",
-    min_value=0.0,
-    max_value=1.0,
-    value=st.session_state.get("threshold", 0.5),
-    step=0.05,
-    help="Only show similar users above this similarity score."
-)
-st.session_state["threshold"] = confidence_threshold
+        "Minimum Similarity Score",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.5,
+        step=0.05,
+        help="Only show similar users above this similarity score."
+    )
 with col3:
     language_codes = books['language_code'].dropna().unique().tolist()
     selected_languages = st.multiselect("Filter by Language Code", language_codes, help="Filter recommendations based on book language.")
 
 st.markdown("---")
 
-if user_input:
+# Refresh button to apply filters only on demand
+if st.button("Refresh Recommendations"):
+
+
+    if user_input:
     pivot_table = ratings.pivot(index='user_id', columns='book_id', values='rating').fillna(0)
 
     if user_input in pivot_table.index:
