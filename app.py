@@ -236,4 +236,4 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
 
             importance_df["Title"] = books.set_index("book_id").loc[importance_df["Book ID"]]["title"].values
             importance_df = importance_df.sort_values("Predicted Rating", ascending=False).drop_duplicates("Book ID").head(5)
-            st.dataframe(importance_df[["Book ID", "Title", "Predicted Rating"]])
+            st.dataframe(importance_df[["Book ID", "Title", "Predicted Rating"]].reset_index(drop=True))
