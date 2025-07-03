@@ -1,52 +1,61 @@
 # ML Powered Engagement Recommender
 
-This Streamlit app uses filtering and machine learning to recommend books and forecast user preferences from a database. It is built using the [Goodbooks-10K dataset](https://github.com/zygmuntz/goodbooks-10k) and includes advanced recommendation and forecasting techniques.
+This Streamlit app recommends books and forecasts user preferences using collaborative filtering, machine learning, and neural network models. It is built using the [Goodbooks-10K dataset](https://github.com/zygmuntz/goodbooks-10k) and enables interactive exploration of engagement trends and model predictions.
 
 ## Features
 
 - Personalized Recommendations
-Input a User ID (from 0-5000) to receive tailored recommendations based on historical rating behavior.
+Enter a User ID (1–5000) to get tailored book recommendations based on historical rating behavior.
 
 - Collaborative Filtering with SVD + Cosine Similarity
-Uses TruncatedSVD (latent embeddings) to represent users in compressed vector spaces and find the most similar users via cosine similarity.
+Uses Truncated SVD to generate latent embeddings, allowing cosine similarity to match users with similar taste.
 
-- Minimum Similarity Score Control
-Adjust a threshold slider to control how similar users must be to influence recommendations.
+- Similarity Score Threshold
+Customize a similarity threshold slider to filter how closely other users must match before influencing recommendations.
 
 - Language Filtering
-Filter recommendations based on the book’s language code (applies only to the "Recommended Books" section).
+Filter book recommendations by language code (applies to the “Recommended Books” section only).
 
-- Randomize Inputs
-Instantly try new inputs with one click using the "Randomize Inputs" button.
+- Input Randomization
+Click the Randomize Inputs button to instantly explore recommendations for a new user and similarity setting.
 
-- Cooldown and Input Validation
-Prevents spamming by disabling the refresh button until a new user ID or similarity threshold is selected. A tooltip and warning message guide proper usage.
+- Smart Refresh Controls
+Prevents redundant refreshes by disabling the button until inputs change. Tooltips and warnings help guide interaction.
 
-- Recommended Books Section
-Shows books highly rated by similar users that the selected user hasn't yet rated.
+- Recommended Books
+Displays the top-rated books by similar users that your selected user hasn’t read yet.
 
-- Rating Trends Visualization
-Plots a comparison between the user's actual past ratings and predicted values using a trained Random Forest model.
+- Rating Trends
+Plots actual user ratings vs. predictions from a trained PyTorch neural network.
 
 - Forecasted Ratings
-Uses Random Forest to predict ratings for unseen books. Visualized as a horizontal bar chart with book titles.
+Predicts how your user might rate unseen books using a PyTorch model. Visualized in a horizontal bar chart.
 
-- Model Comparison
-Evaluates forecasting accuracy by comparing RMSE between:
+- Model Comparison (Forecasting)
+Compare RMSE across two forecasting models:
 
-Random Forest (flexible and accurate)
+Random Forest (nonlinear, more expressive)
 
 Linear Regression (simple baseline)
-RMSE (Root Mean Squared Error) is reported to help assess model performance.
+
+Displays performance as both markdown and a table.
+
+- Embedding Comparison Chart
+Toggle to compare predictions from:
+
+Random Forest with SVD Embeddings
+
+Random Forest with Raw Book IDs
+Visually demonstrates the benefit of embeddings using a side-by-side line chart.
 
 - Top Predicted Books
-Displays the five books with the highest predicted ratings for the user, based on their past behavior. This differs from forecasted ratings by focusing on books already seen.
+Shows the five books with the highest predicted ratings (based on the neural model). Reflects the strongest confidence in prior reading behavior.
 
 ## Tech Stack
 
 - **Frontend:** [Streamlit](https://streamlit.io/)
-- **ML & Data:** `pandas`, `numpy`, `scikit-learn`, `TruncatedSVD`, `RandomForestRegressor`
-- **Visualization:** Streamlit's built-in charts, `matplotlib`
+- **ML & Data:** `PyTorch`, `pandas`, `numpy`, `scikit-learn`, `TruncatedSVD`, `RandomForestRegressor`
+- **Visualization:** `matplotlib`, Streamlit's charting
 - **Deployment:** [Streamlit Cloud](https://streamlit.io/cloud)
 
 ## Installation
