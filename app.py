@@ -142,8 +142,12 @@ if user_input:
             future_preds = model.predict(future_books)
             future_titles = books.set_index('book_id').reindex(future_books['book_id'])['title'].fillna('Unknown Title')
 
-            fig2, ax2 = plt.subplots(figsize=(12, 4))
+            fig2, ax2 = plt.subplots(figsize=(10, 3), facecolor='#0e1117')
             pd.Series(future_preds, index=future_titles, name="Forecasted Ratings").plot(kind='bar', ax=ax2, color='skyblue')
+            ax2.set_facecolor('#0e1117')
+            ax2.tick_params(colors='white')
+            ax2.yaxis.label.set_color('white')
+            ax2.xaxis.label.set_color('white')
             ax2.set_ylabel("Predicted Rating")
             plt.xticks(rotation=45, ha='right', fontsize=8)
             st.pyplot(fig2)
