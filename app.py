@@ -164,7 +164,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
         user_history = ratings[ratings['user_id'] == user_input].sort_values('book_id')
         if len(user_history) >= 5:
             st.subheader("Rating Trends")
-            st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained machine learning model.")
+            st.markdown("A comparison of the selected user’s past ratings with the predictions made by the trained PyTorch machine learning model with embedding scaling (hover over the lines of the graph to see Actual Ratings and Predicted Ratings).")
             X = user_history[['book_id']]
             y = user_history['rating']
             num_books = books['book_id'].max() + 1  # Total number of books for the embedding layer
