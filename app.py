@@ -187,6 +187,7 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                 optimizer = optim.Adam(model.parameters(), lr=0.01)
                 X_tensor = torch.tensor(X_train.values, dtype=torch.float32).unsqueeze(1)
                 y_tensor = torch.tensor(y_train.values, dtype=torch.float32).unsqueeze(1)
+                losses = []
                 for _ in range(epochs):
                     model.train()
                     optimizer.zero_grad()
@@ -194,6 +195,16 @@ if refresh_clicked and (user_input != st.session_state.get("previous_user") or c
                     loss = criterion(output, y_tensor)
                     loss.backward()
                     optimizer.step()
+                    losses.append(loss.item())
+                # Plot the loss curve
+                st.subheader("Training Loss Curve")
+                fig, ax = plt.subplots(figsize=(6, 3), facecolor='#0e1117')
+                ax.plot(losses, color='lightblue')
+                ax.set_title("PyTorch Neural Network Training Loss", color='white')
+                ax.set_xlabel("Epoch", color='white')
+                ax.set_ylabel("Loss", color='white')
+                ax.tick_params(colors='white')
+                st.pyplot(fig)
                 return model
 
             model = train_model(X, y)
